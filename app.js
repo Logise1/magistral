@@ -402,6 +402,20 @@ class UIManager {
                             document.querySelectorAll('.tree-item').forEach(i => i.classList.remove('active'));
                             el.classList.add('active');
                         };
+
+                        // Double click to open HTML files in new tab (as requested for Real FS)
+                        el.ondblclick = async () => {
+                            if (this.vfs.mode === 'real' && child.name.endsWith('.html')) {
+                                const f = await this.vfs.readFile(fullPath);
+                                if (f) {
+                                    // Bundle CSS/JS dependencies so they work in the Blob URL
+                                    const bundledContent = await this._bundleHtml(f.content, fullPath);
+                                    const blob = new Blob([bundledContent], { type: 'text/html' });
+                                    const url = URL.createObjectURL(blob);
+                                    window.open(url, '_blank');
+                                }
+                            }
+                        };
                     } else {
                         el.innerHTML = `<span class="icon"><i class="fa-solid fa-folder"></i></span><span class="name">${child.name}</span>`;
                     }
@@ -425,6 +439,60 @@ class UIManager {
             this.editorMgr.openFile(path, f.content, f.language || 'plaintext');
             document.getElementById('startup-message').classList.add('hidden');
         }
+    }
+
+    // Helper to inline local CSS/JS for "Real File" simulation
+    async _bundleHtml(html, filePath) {
+        let newHtml = html;
+        const baseDir = filePath.substring(0, filePath.lastIndexOf('/'));
+
+        // 1. Find all local CSS <link href="...">
+        // We use a simple regex approach. Complex HTML parsing might require a DOMParser, but this is efficient for an IDE preview.
+        const linkRegex = /<link\s+[^>]*href=["']([^"']+)["'][^>]*>/gi;
+        const links = [];
+        let match;
+        while ((match = linkRegex.exec(html)) !== null) {
+            if ((match[0].includes('rel="stylesheet"') || match[0].includes("rel='stylesheet'")) && !match[1].match(/^https?:\/\//)) {
+                links.push({ start: match.index, end: match.index + match[0].length, src: match[1] });
+            }
+        }
+
+        // 2. Find all local JS <script src="...">
+        const scriptRegex = /<script\s+[^>]*src=["']([^"']+)["'][^>]*>\s*<\/script>/gi;
+        const scripts = [];
+        while ((match = scriptRegex.exec(html)) !== null) {
+            if (!match[1].match(/^https?:\/\//)) {
+                scripts.push({ start: match.index, end: match.index + match[0].length, src: match[1] });
+            }
+        }
+
+        // Combine and sort reverse to replace without index shifting
+        const replacements = [...links.map(l => ({ ...l, type: 'css' })), ...scripts.map(s => ({ ...s, type: 'js' }))]
+            .sort((a, b) => b.start - a.start);
+
+        for (const r of replacements) {
+            // Resolve Path
+            let targetPath = r.src.startsWith('/') ? r.src : `${baseDir}/${r.src}`;
+            // Clean path (simple ./ and // removal)
+            targetPath = targetPath.replace(/\/+/g, '/').replace(/\/\.\//g, '/');
+
+            try {
+                const file = await this.vfs.readFile(targetPath);
+                if (file) {
+                    let tag = '';
+                    if (r.type === 'css') tag = `<style>\n/* Inlined: ${r.src} */\n${file.content}\n</style>`;
+                    if (r.type === 'js') tag = `<script>\n/* Inlined: ${r.src} */\n${file.content}\n</script>`;
+
+                    const before = newHtml.substring(0, r.start);
+                    const after = newHtml.substring(r.end);
+                    newHtml = before + tag + after;
+                }
+            } catch (e) {
+                console.warn(`Failed to bundle resource: ${targetPath}`, e);
+            }
+        }
+
+        return newHtml;
     }
 
     getFileList(node, prefix = '') {
@@ -456,24 +524,33 @@ class EditorManager {
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs' } });
 
         require(['vs/editor/editor.main'], () => {
-            this.editor = monaco.editor.create(document.getElementById('monaco-editor-container'), {
-                value: '',
-                language: 'plaintext',
-                theme: 'vs-dark',
-                automaticLayout: true,
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: 'JetBrains Mono'
-            });
+            // Wait for fonts (JetBrains Mono) to load to prevent cursor misalignment
+            document.fonts.ready.then(() => {
+                this.editor = monaco.editor.create(document.getElementById('monaco-editor-container'), {
+                    value: '',
+                    language: 'plaintext',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    fontFamily: 'JetBrains Mono',
+                    fontLigatures: true
+                });
 
-            this.editor.onDidChangeModelContent(() => {
-                if (this.currentPath) {
-                    // Auto-save debounced
-                    clearTimeout(this.changeTimer);
-                    this.changeTimer = setTimeout(async () => {
-                        await this.vfs.updateFile(this.currentPath, this.editor.getValue());
-                    }, 500);
-                }
+                this.editor.onDidChangeModelContent(() => {
+                    if (this.currentPath) {
+                        // Auto-save debounced
+                        clearTimeout(this.changeTimer);
+                        this.changeTimer = setTimeout(async () => {
+                            await this.vfs.updateFile(this.currentPath, this.editor.getValue());
+                        }, 500);
+                    }
+                });
+
+                // Safety measure: Remeasure fonts after a second
+                setTimeout(() => {
+                    monaco.editor.remeasureFonts();
+                }, 1000);
             });
         });
 
