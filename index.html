@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magistral IDE</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar (File Explorer) -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="icon"><i class="fa-solid fa-layer-group"></i></span>
+                <span class="title">EXPLORER</span>
+                <div class="actions">
+                    <button id="open-folder-btn" title="Open Local Folder (Real Disk)"><i
+                            class="fa-solid fa-folder-open"></i></button>
+                    <button id="new-file-btn" title="New File"><i class="fa-solid fa-file-circle-plus"></i></button>
+                    <button id="new-folder-btn" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
+                    <button id="refresh-files-btn" title="Refresh"><i class="fa-solid fa-arrows-rotate"></i></button>
+                </div>
+            </div>
+            <div class="file-tree" id="file-tree">
+                <!-- File items specific to user state will go here -->
+            </div>
+        </aside>
+
+        <!-- Main Editor Area -->
+        <main class="editor-area">
+            <div class="tabs-bar" id="tabs-bar">
+                <!-- Open tabs -->
+            </div>
+            <div id="monaco-editor-container"></div>
+            <div id="startup-message" class="startup-message">
+                <div class="logo">
+                    <i class="fa-solid fa-code"></i>
+                </div>
+                <h2>Magistral IDE</h2>
+                <p>Select a file to start editing</p>
+                <div class="shortcuts">
+                    <div class="shortcut">
+                        <span class="key">Ctrl</span> + <span class="key">S</span> <span>Save</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Chat Panel -->
+        <aside class="chat-panel" id="chat-panel">
+            <div class="chat-header">
+                <span class="title"><i class="fa-solid fa-robot"></i> AI Assistant</span>
+                <div class="actions">
+                    <select id="model-selector" class="model-selector" title="Select Model">
+                        <option value="magistral-medium-latest" selected>Magistral Medium</option>
+                        <option value="magistral-small-latest">Magistral Small</option>
+                        <option value="mistral-large-latest">Mistral Large</option>
+                        <option value="mistral-medium-latest">Mistral Medium</option>
+                        <option value="mistral-small-latest">Mistral Small</option>
+                    </select>
+                    <button id="clear-chat-btn" title="Clear Chat"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message ai">
+                    <div class="avatar"><i class="fa-solid fa-robot"></i></div>
+                    <div class="content">Hello! I am your Magistral AI functionality. I can creating files, edit code,
+                        and answer questions. How can I help you?</div>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <textarea id="chat-input" placeholder="Ask AI to create files, refactor code..."></textarea>
+                <button id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modals/Templates -->
+    <div id="context-menu" class="context-menu">
+        <div class="menu-item" id="ctx-delete"><i class="fa-solid fa-trash"></i> Delete</div>
+        <div class="menu-item" id="ctx-rename"><i class="fa-solid fa-pen"></i> Rename</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+
+</html>
